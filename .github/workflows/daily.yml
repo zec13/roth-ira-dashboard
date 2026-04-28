@@ -1,0 +1,89 @@
+name: Daily Roth IRA Dashboard
+
+on:
+  schedule:
+    # 5:00 PM ET on weekdays. Cron is in UTC.
+    # 21:00 UTC = 5pm EDT (Mar–Nov), 22:00 UTC = 5pm EST (Nov–Mar).
+    # Running both ensures we always hit 5pm ET regardless of DST. Script is idempotent.
+    - cron: '0 21 * * 1-5'
+    - cron: '0 22 * * 1-5'
+  workflow_dispatch:  # allows manual run from the Actions tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Skip duplicate DST run
+        id: skip-check
+        run: |
+          # Only run if it's actually 5pm ET right now (within tolerance).
+          # ET hour: subtract 4 (EDT) or 5 (EST) from UTC.
+          UTC_HOUR=$(date -u +%-H)
+          MONTH=$(date -u +%-m)
+          # Rough DST: Mar 9 to Nov 2 = EDT (UTC-4). Otherwise EST (UTC-5).
+          if [ $MONTH -ge 3 ] && [ $MONTH -le 11 ]; then
+            ET_HOUR=$(( (UTC_HOUR - 4 + 24) % 24 ))
+          else
+            ET_HOUR=$(( (UTC_HOUR - 5 + 24) % 24 ))
+          fi
+          echo "UTC hour: $UTC_HOUR, ET hour: $ET_HOUR"
+          # Allow manual dispatch always; on schedule, only run if ET hour is 17 (5pm)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "skip=false" >> $GITHUB_OUTPUT
+          elif [ $ET_HOUR -eq 17 ]; then
+            echo "skip=false" >> $GITHUB_OUTPUT
+          else
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Not 5pm ET — skipping."
+          fi
+
+      - name: Set up Python
+        if: steps.skip-check.outputs.skip != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        if: steps.skip-check.outputs.skip != 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run dashboard
+        if: steps.skip-check.outputs.skip != 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          TZ: America/New_York
+        run: python dashboard.py
+
+      - name: Setup Pages
+        if: steps.skip-check.outputs.skip != 'true'
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        if: steps.skip-check.outputs.skip != 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy to GitHub Pages
+        if: steps.skip-check.outputs.skip != 'true'
+        id: deployment
+        uses: actions/deploy-pages@v4
