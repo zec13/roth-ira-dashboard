@@ -352,7 +352,7 @@ DASHBOARD_TEMPLATE = """<!DOCTYPE html>
   .holding-shares { font-size: 12px; color: var(--text-3); margin-left: 8px; }
   .holding-name { font-size: 12px; color: var(--text-3); margin-top: 2px; }
   .holding-price { font-weight: 500; font-size: 15px; text-align: right; }
-  .holding-mini-chart { position: relative; width: 100%; height: 80px; margin: 8px 0; }
+  .holding-mini-chart { position: relative; width: 100%; height: 100px; margin: 8px 0; }
   .holding-line-note { font-size: 11px; color: var(--text-3); margin-bottom: 8px; }
   .holding-line-note .dash { display: inline-block; width: 14px; border-top: 1px dashed rgba(0,0,0,0.45); vertical-align: middle; margin-right: 4px; }
   .holding-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: 12px; }
@@ -658,7 +658,40 @@ function renderHoldingChart(h, range) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: { legend: { display: false }, tooltip: { enabled: false }, verticalLine: { xIndex: entryIdx } },
-      scales: { x: { display: false }, y: { display: false } }
+      scales: {
+        x: {
+          display: true,
+          grid: { display: false },
+          border: { display: false },
+          ticks: {
+            font: { size: 9 },
+            color: '#999',
+            maxTicksLimit: 3,
+            maxRotation: 0,
+            autoSkip: true,
+            callback: function(val) {
+              const lbl = this.getLabelForValue(val);
+              const d = new Date(lbl);
+              if (isNaN(d.getTime())) return '';
+              const month = d.toLocaleString('en-US', { month: 'short' });
+              const yr = String(d.getFullYear()).slice(2);
+              return `${month} '${yr}`;
+            }
+          }
+        },
+        y: {
+          display: true,
+          position: 'right',
+          grid: { display: false },
+          border: { display: false },
+          ticks: {
+            font: { size: 9 },
+            color: '#999',
+            maxTicksLimit: 3,
+            callback: v => '$' + (v >= 100 ? v.toFixed(0) : v.toFixed(2))
+          }
+        }
+      }
     }
   });
 }
