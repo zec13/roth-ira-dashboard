@@ -122,63 +122,63 @@ def compute_held(prices):
 # ---------------- Investment returns curve ----------------
 def compute_returns_curve(held_holdings):
     """
-    Builds the cumulative investment-returns time series:
-      returns(t) = portfolio_value(t) - contributions_so_far(t)
-    Approximates 'contributions_so_far' as linear ramp from $0 (Apr 2022) to $18,000 (today).
-
-    Sample monthly. Real Vanguard would track exact deposit timing — close enough here.
+    Builds the cumulative investment-returns time series (returns = portfolio_value - contributions).
+    Samples weekly so the 30D toggle has enough points to render.
+    Approximates contributions as a linear ramp from $0 (Apr 2022) to TOTAL_CONTRIBUTIONS (today).
     """
-    # Start: April 2022 (first deposit). End: today.
+    from datetime import timedelta
     start = date(2022, 4, 1)
     end = TODAY
 
-    # Get a portfolio-value series. Use weekly history for held tickers.
-    # For each weekly bucket, sum (shares * price). For closed positions, ignore in this curve
-    # (their realized P&L is already represented in cash that increased the portfolio at sale time).
-    # Simple proxy: portfolio value = sum over current holdings of shares * historical price.
-    # This understates early years (you didn't own all these tickers yet) but for the visual it's fine.
-
-    monthly_dates = []
+    # Sample weekly — gives ~210 points over 4 years; 4-5 points within any 30-day window
+    sample_dates = []
     cur = start
     while cur <= end:
-        monthly_dates.append(cur)
-        # Step ~1 month
-        if cur.month == 12:
-            cur = cur.replace(year=cur.year + 1, month=1)
-        else:
-            cur = cur.replace(month=cur.month + 1)
+        sample_dates.append(cur)
+        cur = cur + timedelta(days=7)
+    if sample_dates[-1] != end:
+        sample_dates.append(end)
 
-    # Pull per-ticker history from yfinance directly with monthly granularity
+    # Build a per-ticker date->price map for fast lookup
+    history_maps = {}
+    for h in held_holdings:
+        m = {entry["d"]: entry["p"] for entry in h["history_all"]}
+        history_maps[h["ticker"]] = (m, sorted(m.keys()))
+
     portfolio_values = []
-    for d in monthly_dates:
+    for d in sample_dates:
+        d_str = d.strftime("%Y-%m-%d")
         v = 0.0
         for h in held_holdings:
-            # find closest historical price <= d
-            for entry in reversed(h["history_all"]):
-                if entry["d"] <= d.strftime("%Y-%m-%d"):
-                    v += h["shares"] * entry["p"]
+            m, sorted_keys = history_maps[h["ticker"]]
+            # Find largest historical date <= d_str
+            price = None
+            for k in reversed(sorted_keys):
+                if k <= d_str:
+                    price = m[k]
                     break
+            if price is not None:
+                v += h["shares"] * price
         portfolio_values.append(v)
 
     # Linear contribution ramp
-    n = len(monthly_dates)
+    n = len(sample_dates)
     contributions = [TOTAL_CONTRIBUTIONS * (i / (n - 1)) for i in range(n)] if n > 1 else [TOTAL_CONTRIBUTIONS]
 
-    # Returns = value - contributions
     points = []
-    for i, d in enumerate(monthly_dates):
-        points.append({
-            "d": d.strftime("%Y-%m-%d"),
-            "v": portfolio_values[i] - contributions[i],
-        })
+    for i, d in enumerate(sample_dates):
+        v = portfolio_values[i] - contributions[i]
+        # Defensive: filter NaN/inf so the chart doesn't break
+        if v != v or v == float("inf") or v == float("-inf"):
+            v = 0.0
+        points.append({"d": d.strftime("%Y-%m-%d"), "v": round(v, 2)})
 
-    # Force the last point to be the EXACT current value - total contributions, so it matches
-    # the headline number on the dashboard.
+    # Force the last point to match the headline number exactly
     if points:
         current_total_value = sum(h["value"] for h in held_holdings)
         points[-1] = {
             "d": TODAY.strftime("%Y-%m-%d"),
-            "v": current_total_value - TOTAL_CONTRIBUTIONS,
+            "v": round(current_total_value - TOTAL_CONTRIBUTIONS, 2),
         }
 
     return points
