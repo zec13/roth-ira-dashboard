@@ -24,7 +24,7 @@ from catalysts import CATALYSTS
 # ---------------- Config ----------------
 TODAY = date.today()
 ALL_TICKERS = [t for t, *_ in HOLDINGS] + [t for t, *_ in CLOSED_POSITIONS]
-HELD_TICKERS = [t for t, sh, _, _ in HOLDINGS if sh > 0]
+HELD_TICKERS = [t for t, sh, _, _, _ in HOLDINGS if sh > 0]
 
 OUT_DIR = Path("docs")
 OUT_DIR.mkdir(exist_ok=True)
