@@ -622,7 +622,7 @@ function renderHoldingChart(h, range) {
   const up = h.total_return >= 0;
   const color = up ? '#1D9E75' : '#A32D2D';
   const fillColor = up ? 'rgba(29,158,117,0.15)' : 'rgba(163,45,45,0.15)';
-  const entryIdx = findEntryIdx(series, h.avg_cost);
+  const entryIdx = findEntryIdx(series, h.purchase_date);
   if (holdingCharts[h.ticker]) holdingCharts[h.ticker].destroy();
   holdingCharts[h.ticker] = new Chart(document.getElementById('hc-' + h.ticker), {
     type: 'line',
