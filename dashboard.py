@@ -33,10 +33,13 @@ OUT_DIR.mkdir(exist_ok=True)
 # ---------------- Market data ----------------
 def fetch_prices():
     """Returns dict of {ticker: {price, day_change_pct, day_change_dollar, d30_pct, history_1y, history_all}}."""
+    from curl_cffi import requests as curl_requests
+    # Impersonate a real Chrome browser — Yahoo blocks the default Python User-Agent on GitHub Actions IPs
+    session = curl_requests.Session(impersonate="chrome")
     data = {}
     for ticker in ALL_TICKERS:
         try:
-            t = yf.Ticker(ticker)
+            t = yf.Ticker(ticker, session=session)
             # Fetch ~5 years for "all" view, weekly granularity
             hist_all = t.history(period="5y", interval="1wk", auto_adjust=True)
             # 1-year, daily
