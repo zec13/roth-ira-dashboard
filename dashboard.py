@@ -506,10 +506,37 @@ function renderReturnsChart(range) {
         }
       },
       scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 10 }, maxTicksLimit: 8, maxRotation: 0 } },
-        y: { grid: { color: 'rgba(0,0,0,0.05)' },
-             ticks: { font: { size: 10 },
-                      callback: v => (v >= 0 ? '+$' : '−$') + Math.abs(v >= 1000 || v <= -1000 ? (v/1000).toFixed(1)+'k' : v.toFixed(0)) } }
+        x: {
+          grid: { display: false },
+          ticks: {
+            font: { size: 10 },
+            color: '#888',
+            maxTicksLimit: 3,
+            maxRotation: 0,
+            autoSkip: true,
+            callback: function(val, idx, ticks) {
+              const lbl = this.getLabelForValue(val);
+              const d = new Date(lbl);
+              if (isNaN(d.getTime())) return lbl;
+              const month = d.toLocaleString('en-US', { month: 'short' });
+              const yr = String(d.getFullYear()).slice(2);
+              return `${month} '${yr}`;
+            }
+          }
+        },
+        y: {
+          grid: { color: 'rgba(0,0,0,0.06)' },
+          ticks: {
+            font: { size: 10 },
+            color: '#888',
+            maxTicksLimit: 4,
+            callback: v => {
+              const sign = v >= 0 ? '+$' : '−$';
+              const abs = Math.abs(v);
+              return sign + (abs >= 1000 ? (abs/1000).toFixed(1)+'k' : abs.toFixed(0));
+            }
+          }
+        }
       }
     }
   });
