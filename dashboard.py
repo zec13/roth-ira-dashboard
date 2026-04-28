@@ -605,15 +605,15 @@ function holdingHTML(h) {
 
 document.getElementById('holdings-container').innerHTML = HOLDINGS.map(holdingHTML).join('');
 
-// Find avg-cost-weighted entry index in a series (closest historical price match)
-function findEntryIdx(series, avgCost) {
-  if (!series || series.length === 0) return -1;
-  // Find first index where the price came near the avg cost (within ~10%) — proxy for entry zone
+// Find the index in the series closest to the avg-cost-weighted purchase date
+function findEntryIdx(series, purchaseDate) {
+  if (!series || series.length === 0 || !purchaseDate) return -1;
+  // Find the index where the date is >= purchase_date (first chart point on or after entry)
   for (let i = 0; i < series.length; i++) {
-    if (Math.abs(series[i].p - avgCost) / avgCost < 0.1) return i;
+    if (series[i].d >= purchaseDate) return i;
   }
-  // Fallback: first point
-  return 0;
+  // Purchase happened after the chart window — return -1 so no line is drawn
+  return -1;
 }
 
 const holdingCharts = {};
