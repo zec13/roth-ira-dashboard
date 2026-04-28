@@ -113,6 +113,7 @@ def compute_held(prices):
             "history_1y": p["history_1y"],
             "history_all": p["history_all"],
             "history_30d": p["history_30d"],
+            "purchase_date": purchase_date,
         })
     out.sort(key=lambda h: h["value"], reverse=True)
     return out
