@@ -87,7 +87,7 @@ def fetch_prices():
 def compute_held(prices):
     """Returns list of dicts with all per-holding metrics, sorted by value desc."""
     out = []
-    for ticker, shares, cost_basis, name in HOLDINGS:
+    for ticker, shares, cost_basis, name, purchase_date in HOLDINGS:
         if ticker not in prices:
             continue
         p = prices[ticker]
